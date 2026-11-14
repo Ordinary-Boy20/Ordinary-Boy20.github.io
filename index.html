@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ankit Kumar · AK-32</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap">
+<meta name="description" content="Ankit Kumar, firmware and embedded systems. This portfolio is an interactive dev board: power it on and probe the chips.">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #060a09;
+    --surface: #0d1412;
+    --surface-2: #131c19;
+    --text: #e6efea;
+    --muted: #8ea39a;
+    --border: #1f2c27;
+    --mask: #0c3a2b;
+    --mask-2: #0f4433;
+    --copper: #1f7a57;
+    --signal: #3fe0c5;
+    --signal-hi: #c9fff5;
+    --power: #ffc857;
+    --gold: #c9a227;
+    --ok: #4cff8f;
+    --wip: #ffb020;
+    --silk: #e9f2ee;
+    --chip: #15191c;
+    --chip-edge: #2c3338;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.6;
+    overflow-x: hidden;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace; }
+  h1, h2, .sheet-body h3 { font-family: "Space Grotesk", system-ui, sans-serif; text-wrap: balance; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  a { color: var(--signal); }
+  :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+
+  /* top bar */
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+  .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; height: 54px; gap: 12px; }
+  .brand { color: var(--text); text-decoration: none; font-weight: 700; white-space: nowrap; }
+  .brand b { color: var(--signal); }
+  .nav { display: flex; gap: 16px; align-items: center; }
+  .nav a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+  .nav a:hover { color: var(--text); }
+  @media (max-width: 560px) { .nav a.opt { display: none; } }
+
+  /* intro */
+  .intro { padding-block: 40px 18px; }
+  .kicker { color: var(--signal); font-size: 0.8rem; letter-spacing: 0.14em; margin: 0 0 10px; }
+  h1 { margin: 0 0 8px; font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.05; letter-spacing: -0.02em; }
+  .lead { color: var(--muted); max-width: 640px; margin: 0 0 20px; font-size: 1.05rem; }
+  .lead b { color: var(--text); font-weight: 600; }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;
+    font: 600 0.95rem/1 system-ui, sans-serif; padding: 11px 16px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: var(--signal); }
+  .btn.power { background: var(--power); color: #1a1200; border-color: var(--power); }
+  .btn.power[aria-pressed="true"] { background: var(--surface); color: var(--power); }
+
+  /* board */
+  .board-wrap { padding-block: 8px 10px; }
+  .board-scroll { overflow-x: auto; border-radius: 22px; -webkit-overflow-scrolling: touch; }
+  #pcb { display: block; width: 100%; min-width: 760px; height: auto; user-select: none; }
+  .swipe { display: none; color: var(--muted); font-size: 0.82rem; margin: 8px 0 0; }
+  @media (max-width: 780px) { .swipe { display: block; } }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  /* svg styling */
+  .silk { fill: var(--silk); font: 600 13px "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: 0.06em; }
+  .silk.dim { fill: #9fc0b2; font-weight: 400; }
+  .chip { fill: var(--chip); stroke: var(--chip-edge); stroke-width: 1.5; transition: stroke .2s; }
+  .pin { fill: var(--gold); }
+  .notch { fill: #2b3237; }
+  .chip-title { fill: #eef3f0; font: 700 17px "Space Grotesk", system-ui, sans-serif; letter-spacing: 0.02em; pointer-events: none; }
+  .chip-sub { fill: #8ea39a; font: 12.5px "JetBrains Mono", ui-monospace, Consolas, monospace; pointer-events: none; }
+  .chip-status { font: 700 11.5px "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: 0.06em; pointer-events: none; }
+  .chip-status.done { fill: var(--ok); }
+  .chip-status.wip { fill: var(--wip); }
+  .led { fill: #20302a; stroke: #0a0f0d; stroke-width: 1; transition: fill .3s; }
+  #pcb.on .led.done { fill: var(--ok); filter: url(#glow); }
+  #pcb.on .led.wip { fill: var(--wip); filter: url(#glow); animation: blink 1.2s steps(2) infinite; }
+  #pcb.on #pwrLed { fill: #ff4d4d; filter: url(#glow); }
+  @keyframes blink { 50% { opacity: 0.25; } }
+
+  [data-id] { cursor: pointer; outline: none; }
+  [data-id]:hover .chip, [data-id]:focus-visible .chip, [data-id].hot .chip { stroke: var(--signal); stroke-width: 2.5; }
+  [data-id]:focus-visible .chip { stroke-dasharray: 6 4; }
+
+  #parts, #mcu, #oled, #j1, #usb { transition: opacity .5s ease, filter .5s ease; }
+  #pcb:not(.on) #parts, #pcb:not(.on) #mcu, #pcb:not(.on) #j1 { opacity: 0.55; filter: saturate(0.4); }
+
+  .cu { fill: none; stroke: var(--copper); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+  .fill { fill: none; stroke: var(--signal); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.7; }
+  .flow { fill: none; stroke: var(--signal-hi); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 14; opacity: 0; animation: flow .7s linear infinite; }
+  .tr.pwr .fill { stroke: var(--power); }
+  .tr.pwr .flow { stroke: #fff1c9; }
+  .tr.active .fill { opacity: 1; filter: url(#glow); }
+  #pcb.ready .tr.active .flow { opacity: 1; }
+  #pcb.ready .tr.pwr .flow { opacity: 0.55; }
+  @keyframes flow { to { stroke-dashoffset: -16; } }
+
+  .oled-text { fill: #7df9ff; font: 15px "JetBrains Mono", ui-monospace, Consolas, monospace; pointer-events: none; }
+  #pcb.on .oled-screen { fill: #01070a; }
+  .oled-screen { fill: #000; transition: fill .3s; }
+
+  #swKnob { transition: transform .35s cubic-bezier(.3,1.4,.5,1); }
+  #pcb.on #swKnob { transform: translateX(64px); }
+  #pcb.on #swTrack { fill: #1d4a3a; }
+  #hint { fill: var(--power); font: 700 13px "JetBrains Mono", ui-monospace, Consolas, monospace; animation: nudge 1.4s ease-in-out infinite; }
+  #pcb.on #hint { display: none; }
+  @keyframes nudge { 50% { transform: translateX(-6px); } }
+
+  /* sections */
+  section { padding-block: 34px; }
+  h2 { margin: 0 0 4px; font-size: 1.5rem; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 0.95rem; }
+
+  /* BOM */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; }
+  table { width: 100%; border-collapse: collapse; min-width: 620px; background: var(--surface); }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 0.93rem; vertical-align: top; }
+  th { color: var(--muted); font: 600 0.78rem "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; background: var(--surface-2); }
+  tr:last-child td { border-bottom: none; }
+  td.ref { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; color: var(--signal); white-space: nowrap; }
+  .st { font: 700 0.75rem "JetBrains Mono", ui-monospace, Consolas, monospace; white-space: nowrap; }
+  .st.done { color: var(--ok); } .st.wip { color: var(--wip); }
+  .link-btn { background: none; border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 0.82rem; white-space: nowrap; }
+  .link-btn:hover { border-color: var(--signal); color: var(--signal); }
+
+  /* serial monitor */
+  .term { background: #020605; border: 1px solid #1d3a32; border-radius: 14px; overflow: hidden; font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 0.9rem; }
+  .term-bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: #08130f; border-bottom: 1px solid #1d3a32; color: #7fb3a3; font-size: 0.8rem; flex-wrap: wrap; }
+  .term-bar i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .term-bar .right { margin-left: auto; }
+  .term-out { height: 300px; overflow-y: auto; padding: 12px 14px; white-space: pre-wrap; word-break: break-word; color: #cfe9e1; }
+  .term-out .cmd { color: var(--signal); } .term-out .ok { color: var(--ok); } .term-out .warn { color: var(--wip); }
+  .term-out .err { color: #ff8a8a; } .term-out .dim { color: #557a6d; }
+  .term-in { display: flex; gap: 8px; align-items: center; padding: 10px 14px; border-top: 1px solid #1d3a32; }
+  .term-in label { color: var(--ok); white-space: nowrap; }
+  .term-in input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: #eafff8; font: inherit; caret-color: var(--signal); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chips button { font: 0.8rem "JetBrains Mono", ui-monospace, Consolas, monospace; background: var(--surface); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  .chips button:hover { color: var(--signal); border-color: var(--signal); }
+
+  /* datasheet drawer */
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 40; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: min(500px, 100%);
+    background: #0b1210; border-left: 1px solid var(--border); box-shadow: -20px 0 50px rgba(0,0,0,0.5);
+    transform: translateX(105%); transition: transform .3s cubic-bezier(.2,.8,.2,1);
+    display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .sheet.open { transform: none; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 0.78rem; letter-spacing: 0.1em; }
+  .sheet-head button { background: none; border: 1px solid var(--border); color: var(--text); border-radius: 8px; width: 34px; height: 34px; cursor: pointer; font-size: 1rem; }
+  .sheet-body { overflow-y: auto; padding: 20px 18px 40px; }
+  .sheet-body h3 { margin: 0 0 6px; font-size: 1.45rem; line-height: 1.2; }
+  .sheet-body h4 { margin: 22px 0 8px; color: var(--signal); font: 700 0.75rem "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px dashed var(--border); padding-bottom: 6px; }
+  .sheet-body p { margin: 0 0 8px; color: #c3d3cc; }
+  .sheet-body ul { margin: 0; padding-left: 20px; color: #c3d3cc; }
+  .sheet-body li { margin-bottom: 5px; }
+  .badge { display: inline-block; font: 700 0.72rem "JetBrains Mono", ui-monospace, Consolas, monospace; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.06em; }
+  .badge.done { background: rgba(76,255,143,0.12); color: var(--ok); }
+  .badge.wip { background: rgba(255,176,32,0.14); color: var(--wip); }
+  .flowline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .flowline span.n { background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; font: 0.82rem "JetBrains Mono", ui-monospace, Consolas, monospace; }
+  .flowline span.a { color: var(--signal); }
+  .pins { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+  .pins span { font: 0.8rem "JetBrains Mono", ui-monospace, Consolas, monospace; background: var(--surface-2); border-left: 3px solid var(--gold); padding: 5px 8px; border-radius: 4px; }
+  .pins span em { color: var(--muted); font-style: normal; margin-right: 6px; }
+  .result { background: rgba(63,224,197,0.08); border: 1px solid rgba(63,224,197,0.25); border-radius: 10px; padding: 10px 12px; color: #d6f5ee; }
+  .mini-scope { width: 100%; height: 130px; display: block; background: #01070a; border: 1px solid #1d3a32; border-radius: 8px; margin-top: 4px; }
+  .skill { display: grid; grid-template-columns: 44px 1fr auto; gap: 2px 10px; align-items: center; margin-bottom: 10px; font-size: 0.92rem; }
+  .skill .p { font: 0.78rem "JetBrains Mono", ui-monospace, Consolas, monospace; color: var(--gold); }
+  .skill .lv { color: var(--muted); font-size: 0.8rem; }
+  .skill .bar { grid-column: 2 / -1; height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+  .skill .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--copper), var(--signal)); border-radius: 99px; width: 0; transition: width 1s ease .1s; }
+  .contact-row { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.94rem; flex-wrap: wrap; }
+  .contact-row span { color: var(--muted); font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 0.82rem; }
+  .sheet-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+
+  footer { border-top: 1px solid var(--border); padding-block: 24px 40px; color: var(--muted); font-size: 0.86rem; }
+  .toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 16px); background: var(--text); color: var(--bg); padding: 9px 14px; border-radius: 10px; font-size: 0.9rem; opacity: 0; transition: .25s; pointer-events: none; z-index: 60; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand mono" href="#top"><b>AK-32</b> · Ankit Kumar</a>
+    <nav class="nav">
+      <a href="#board">Board</a>
+      <a class="opt" href="#bom">BOM</a>
+      <a href="#serial">Serial</a>
+      <a href="https://github.com/Ordinary-Boy20" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="intro wrap" aria-labelledby="name">
+    <p class="kicker mono">// FIRMWARE · EMBEDDED SYSTEMS · ELECTRICAL ENGINEERING @ NIT AGARTALA</p>
+    <h1 id="name">Ankit Kumar</h1>
+    <p class="lead">This portfolio is a <b>dev board</b>. Power it on, then <b>click any chip</b> to read its datasheet. Every chip is a project I built.</p>
+    <div class="cta">
+      <button class="btn power" id="powerBtn" type="button" aria-pressed="false">⏻ Power on</button>
+      <a class="btn" href="#serial">Open serial monitor</a>
+      <a class="btn" href="#bom">Text version (BOM)</a>
+    </div>
+  </section>
+
+  <div class="board-wrap wrap" id="board">
+    <div class="board-scroll">
+      <svg id="pcb" viewBox="0 0 1000 700" role="group" aria-label="Interactive circuit board. Each chip is a project and opens its datasheet.">
+        <defs>
+          <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1" fill="#145a42" />
+          </pattern>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <linearGradient id="maskGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0f4433" />
+            <stop offset="1" stop-color="#0a3024" />
+          </linearGradient>
+        </defs>
+
+        <!-- board -->
+        <rect x="6" y="6" width="988" height="688" rx="22" fill="url(#maskGrad)" stroke="#c9a227" stroke-width="2" />
+        <rect x="6" y="6" width="988" height="688" rx="22" fill="url(#dots)" />
+        <g fill="#060a09" stroke="#c9a227" stroke-width="3">
+          <circle cx="28" cy="28" r="9" /><circle cx="972" cy="28" r="9" />
+          <circle cx="28" cy="672" r="9" /><circle cx="972" cy="672" r="9" />
+        </g>
+
+        <g id="traces"></g>
+
+        <!-- U1: OLED (about) -->
+        <g id="oled" data-id="about" tabindex="0" role="button" aria-label="U1 OLED display: about Ankit. Open datasheet">
+          <text class="silk" x="360" y="32">U1 · OLED 128×64 · ABOUT</text>
+          <rect class="chip" x="360" y="40" width="280" height="120" rx="8" />
+          <rect class="oled-screen" x="376" y="54" width="248" height="92" rx="3" />
+          <text class="oled-text" id="ol0" x="388" y="76"></text>
+          <text class="oled-text" id="ol1" x="388" y="96"></text>
+          <text class="oled-text" id="ol2" x="388" y="116"></text>
+          <text class="oled-text" id="ol3" x="388" y="136"></text>
+        </g>
+
+        <!-- MCU -->
+        <g id="mcu" data-id="about" tabindex="0" role="button" aria-label="Main microcontroller AK-32: about Ankit. Open datasheet">
+          <g id="mcuPins"></g>
+          <rect class="chip" x="420" y="240" width="160" height="160" rx="8" />
+          <circle class="notch" cx="438" cy="258" r="5" />
+          <text x="500" y="302" text-anchor="middle" style="fill:#eef3f0;font:800 26px 'JetBrains Mono',ui-monospace,Consolas,monospace;letter-spacing:.08em">AK-32</text>
+          <text x="500" y="326" text-anchor="middle" class="chip-sub">ANKIT KUMAR</text>
+          <text x="500" y="346" text-anchor="middle" class="chip-sub">FW · EMBEDDED</text>
+          <text x="500" y="378" text-anchor="middle" class="chip-sub" style="fill:#5f7a70">2428-EE · NITA</text>
+        </g>
+
+        <g id="parts"></g>
+
+        <!-- J1: skills header -->
+        <g id="j1" data-id="skills" tabindex="0" role="button" aria-label="J1 pin header: skills pinout. Open datasheet">
+          <text class="silk" x="520" y="452">J1 · SKILLS PINOUT</text>
+          <rect class="chip" x="520" y="460" width="190" height="100" rx="6" style="fill:#1a1f22" />
+          <g id="j1Pins"></g>
+          <text x="615" y="545" text-anchor="middle" class="chip-sub">10 pins · click</text>
+        </g>
+
+        <!-- power switch, led, reset -->
+        <g id="sw1" tabindex="0" role="switch" aria-checked="false" aria-label="SW1 power switch" style="cursor:pointer">
+          <rect id="swTrack" x="50" y="620" width="110" height="36" rx="18" fill="#1b2420" stroke="#c9a227" stroke-width="1.5" />
+          <circle id="swKnob" cx="73" cy="638" r="13" fill="#e9f2ee" />
+          <text class="silk" x="50" y="680">SW1 · PWR</text>
+        </g>
+        <circle id="pwrLed" class="led" cx="190" cy="638" r="7" />
+        <text class="silk dim" x="176" y="680">PWR</text>
+        <g id="rst" tabindex="0" role="button" aria-label="Reset button: reboot the board" style="cursor:pointer">
+          <rect x="230" y="620" width="36" height="36" rx="6" fill="#20272b" stroke="#c9a227" stroke-width="1.5" />
+          <circle cx="248" cy="638" r="10" fill="#2f3a40" stroke="#58656c" />
+          <text class="silk dim" x="232" y="680">RST</text>
+        </g>
+        <text id="hint" x="290" y="644">◀ flip SW1 to power on</text>
+
+        <text class="silk" x="660" y="648" text-anchor="middle">AK-32 DEV BOARD · rev 2.0</text>
+        <text class="silk dim" x="660" y="668" text-anchor="middle">designed by Ankit Kumar · NIT Agartala</text>
+
+        <!-- J2: USB-C (contact) -->
+        <g id="usb" data-id="contact" tabindex="0" role="button" aria-label="J2 USB-C port: contact Ankit. Open datasheet">
+          <rect class="chip" x="830" y="615" width="100" height="44" rx="12" style="fill:#aeb6bc;stroke:#6d777d" />
+          <rect x="848" y="630" width="64" height="14" rx="7" fill="#262c30" />
+          <text class="silk" x="830" y="682">J2 · CONTACT</text>
+        </g>
+      </svg>
+    </div>
+    <p class="swipe">Swipe sideways to explore the whole board.</p>
+    <div class="legend mono">
+      <span><i style="background:var(--ok)"></i>Completed</span>
+      <span><i style="background:var(--wip)"></i>In progress</span>
+      <span><i style="background:var(--power)"></i>Power rail</span>
+      <span><i style="background:var(--signal)"></i>Signal trace</span>
+    </div>
+  </div>
+
+  <section id="bom" class="wrap">
+    <h2>Bill of Materials</h2>
+    <p class="sub">The same board as a list. Each row opens its datasheet.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Ref</th><th>Component</th><th>Stack</th><th>Status</th><th><span class="sr-only">Open</span></th></tr></thead>
+        <tbody id="bomBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="serial" class="wrap">
+    <h2>Serial Monitor</h2>
+    <p class="sub">Talk to the board. Type <span class="mono">help</span>, or tap a command.</p>
+    <div class="term" id="term">
+      <div class="term-bar">
+        <i style="background:#ff6b6b"></i><i style="background:#ffd43b"></i><i style="background:#69db7c"></i>
+        <span>COM3 · AK-32</span>
+        <span class="right">115200 baud · 8N1</span>
+      </div>
+      <div class="term-out" id="termOut" role="log" aria-live="polite"></div>
+      <form class="term-in" id="termForm" autocomplete="off">
+        <label for="termIn">visitor@ak-32:~$</label>
+        <input id="termIn" type="text" spellcheck="false" autocapitalize="off" placeholder="type help">
+      </form>
+    </div>
+    <div class="chips" aria-label="Quick commands">
+      <button type="button" data-cmd="whoami">whoami</button>
+      <button type="button" data-cmd="ls">ls</button>
+      <button type="button" data-cmd="probe U2">probe U2</button>
+      <button type="button" data-cmd="i2cscan">i2cscan</button>
+      <button type="button" data-cmd="status">status</button>
+      <button type="button" data-cmd="sudo hire-me">sudo hire-me</button>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">© Ankit Kumar · Hand-built in plain HTML, CSS and JavaScript · <a href="https://github.com/Ordinary-Boy20" target="_blank" rel="noopener">github.com/Ordinary-Boy20</a></div>
+</footer>
+
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true">
+  <div class="sheet-head mono"><span id="sheetRef">AK-32 · DATASHEET</span><button type="button" id="sheetClose" aria-label="Close datasheet">✕</button></div>
+  <div class="sheet-body" id="sheetBody"></div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  // ================= EDIT YOUR DETAILS HERE =================
+  const ME = {
+    name: "Ankit Kumar",
+    github: "https://github.com/Ordinary-Boy20",
+    githubShort: "github.com/Ordinary-Boy20",
+    email: "ankitkumar08022006@gmail.com",
+    linkedin: "https://www.linkedin.com/in/ankit-kumar-3554aa345/",
+    resume: ""     // TODO: a public link to your resume PDF (hidden while empty)
+  };
+
+  const PARTS = [
+    { id: "osc", ref: "U2", x: 40, y: 50, w: 200, h: 110, title: "DIGITAL SCOPE", sub: "ESP32 · Python", status: "done",
+      name: "Digital Oscilloscope",
+      summary: "A real-time voltage viewer. The ESP32 samples an analog signal and streams it over serial to a Python desktop app that plots it live.",
+      flow: ["Analog in", "ESP32 ADC", "UART", "PySerial", "PyQtGraph plot"],
+      features: ["Sampled analog voltage with the ESP32 ADC.", "Streamed readings over serial at a fixed rate.", "Wrote a Python receiver with PySerial.", "Built a live plot with PyQtGraph and PySide6.", "Buffered samples so the plot stays smooth while streaming."],
+      result: "Live voltage traces on a desktop screen, captured from an ESP32 board.",
+      stack: ["Embedded C", "ADC", "UART", "Python", "PySide6", "PyQtGraph"] },
+    { id: "cmd", ref: "U3", x: 40, y: 250, w: 200, h: 110, title: "CMD CENTER", sub: "ESP32 · OLED · Wi-Fi", status: "done",
+      name: "ESP32 Desktop Command Center",
+      summary: "A desk status panel with an OLED display, five-button navigation, and live sensor readings.",
+      flow: ["5 buttons", "ESP32 GPIO", "Firmware loop", "OLED (I2C)"],
+      features: ["Drove an SSD1306 OLED over I2C.", "Read five buttons with debounced GPIO input.", "Integrated PIR, HC-SR04 ultrasonic and RGB LED peripherals in one loop.", "Connected to Wi-Fi and showed system status on screen.", "Found wiring and button faults using serial debug output."],
+      result: "A working five-button interface driving several sensors on one microcontroller.",
+      stack: ["C/C++", "I2C", "GPIO", "Wi-Fi", "SSD1306"] },
+    { id: "env", ref: "U4", x: 40, y: 450, w: 200, h: 110, title: "ENV MONITOR", sub: "ESP32 · DHT11 · Relay", status: "done",
+      name: "ESP32 Environmental Monitor",
+      summary: "Reads temperature, humidity, motion and light, and switches a relay when readings cross set thresholds.",
+      flow: ["DHT11 · PIR · LDR", "ESP32", "Threshold logic", "Relay"],
+      features: ["Read DHT11 temperature and humidity.", "Read PIR motion and LDR light levels.", "Switched a relay automatically on threshold rules."],
+      result: "Automatic switching driven by real sensor readings.",
+      stack: ["Sensor drivers", "ADC", "GPIO", "Relay"] },
+    { id: "i8086", ref: "U5", x: 760, y: 50, w: 200, h: 110, title: "TRAFFIC CTRL", sub: "8086 · 8255A · ASM", status: "done",
+      name: "8086 Traffic Light Controller",
+      summary: "Traffic-light sequencing written in 8086 assembly, with an 8255A programmable I/O interface driving LEDs and 7-segment displays.",
+      flow: ["8086 CPU", "8255A PPI", "74LS373 latch", "LEDs · 7-segment"],
+      features: ["Wrote the sequencing logic in 8086 assembly.", "Configured the 8255A for input and output.", "Drove LEDs and 7-segment displays through 74LS373 latches and a 74LS48 decoder.", "Verified the full design in Proteus before submission."],
+      result: "A working, simulated controller submitted as a course project.",
+      stack: ["8086 ASM", "8255A", "74LS373", "74LS48", "Proteus"] },
+    { id: "sih", ref: "U6", x: 760, y: 250, w: 200, h: 110, title: "COLD HUB · SIH", sub: "Simulink · PV · PCM", status: "done",
+      name: "Solar-Assisted Micro Cold Hub · Smart India Hackathon 2026",
+      summary: "A Simulink model of a solar-powered cold store for North-East India, with battery backup and phase-change-material (PCM) thermal storage.",
+      flow: ["Solar PV", "Battery", "Compressor", "PCM store", "Chamber temp"],
+      features: ["Modelled solar availability and battery behaviour.", "Modelled compressor operation and cooling-power allocation.", "Modelled PCM (PlusICE A13) thermal storage for a 30 L chamber with 40 mm PUF insulation.", "Simulated compressor failure and compared chamber temperature with and without PCM."],
+      result: "Quantified how long the chamber stays protected after a compressor failure, with and without PCM.",
+      stack: ["MATLAB", "Simulink", "Thermal model", "Battery model"] },
+    { id: "imu", ref: "U7", x: 760, y: 450, w: 200, h: 110, title: "AIR MOUSE", sub: "ESP32 · MPU6050", status: "wip",
+      name: "Air Mouse",
+      summary: "Turns hand motion into cursor movement using an MPU6050 accelerometer and gyroscope over I2C.",
+      flow: ["MPU6050 IMU", "I2C", "ESP32", "Cursor output"],
+      features: ["Reading accelerometer and gyroscope data over I2C.", "Currently debugging MPU6050 detection with an I2C bus scan."],
+      result: "In progress: sensor reads are being stabilised before cursor control.",
+      stack: ["I2C", "IMU", "ESP32"] },
+    { id: "mppt", ref: "U8", x: 290, y: 460, w: 190, h: 100, title: "MPPT CHARGER", sub: "PWM · Buck · P&O", status: "wip",
+      name: "Solar MPPT Charge Controller",
+      summary: "A charger that tracks a solar panel's maximum power point with the perturb-and-observe algorithm.",
+      flow: ["Solar panel", "V/I sense", "MCU (P&O)", "PWM", "Buck converter", "Battery"],
+      features: ["Explored panel voltage measurement and PWM control.", "Studied the perturb-and-observe MPPT algorithm.", "Next: validate in Simulink, then on a buck converter with a MOSFET gate driver."],
+      result: "In progress: hardware not yet tested under load.",
+      stack: ["PWM", "ADC", "DC-DC", "MPPT"] }
+  ];
+
+  const SKILLS = [
+    { pin: "P0", name: "Embedded C / C++", level: "Intermediate", v: 75 },
+    { pin: "P1", name: "ESP32 / Arduino", level: "Intermediate", v: 78 },
+    { pin: "P2", name: "UART · I2C · SPI", level: "Intermediate", v: 70 },
+    { pin: "P3", name: "Sensor interfacing", level: "Intermediate", v: 72 },
+    { pin: "P4", name: "8085 / 8086 ASM", level: "Academic + practical", v: 60 },
+    { pin: "P5", name: "Python (serial, plots)", level: "Intermediate", v: 68 },
+    { pin: "P6", name: "MATLAB / Simulink", level: "Basic–Intermediate", v: 55 },
+    { pin: "P7", name: "Proteus", level: "Basic–Intermediate", v: 48 },
+    { pin: "P8", name: "KiCad / PCB", level: "Learning", v: 25 },
+    { pin: "P9", name: "STM32 · CAN · RTOS", level: "In progress", v: 15 }
+  ];
+
+  const TRACES = [
+    { to: "osc",   d: "M240 105 H300 V270 H420" },
+    { to: "cmd",   d: "M240 305 H340 V320 H420" },
+    { to: "env",   d: "M240 505 H380 V370 H420" },
+    { to: "i8086", d: "M760 105 H700 V270 H580" },
+    { to: "sih",   d: "M760 305 H660 V320 H580" },
+    { to: "imu",   d: "M760 505 H620 V370 H580" },
+    { to: "about", d: "M470 160 V240" },
+    { to: "about", d: "M530 160 V240" },
+    { to: "mppt",  d: "M420 460 V430 H460 V400" },
+    { to: "skills",d: "M580 460 V430 H540 V400" },
+    { to: "power", d: "M105 620 V600 H500 V400", pwr: true },
+    { to: "contact", d: "M880 615 V600 H500", pwr: true }
+  ];
+  // ===========================================================
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const NS = "http://www.w3.org/2000/svg";
+  function S(tag, a = {}, text) { const n = document.createElementNS(NS, tag); for (const k in a) n.setAttribute(k, a[k]); if (text !== undefined) n.textContent = text; return n; }
+  function E(tag, a = {}, text) { const n = document.createElement(tag); for (const k in a) n.setAttribute(k, a[k]); if (text !== undefined) n.textContent = text; return n; }
+  const statusText = s => s === "wip" ? "IN PROGRESS" : "COMPLETED";
+
+  const pcb = $("#pcb");
+
+  // ---------- draw traces ----------
+  const tracesG = $("#traces");
+  TRACES.forEach(t => {
+    const g = S("g", { class: "tr" + (t.pwr ? " pwr" : ""), "data-to": t.to });
+    const fill = S("path", { d: t.d, class: "fill" });
+    g.append(S("path", { d: t.d, class: "cu" }), fill, S("path", { d: t.d, class: "flow" }));
+    tracesG.append(g);
+  });
+  const fills = $$(".tr .fill");
+  fills.forEach(f => { const L = f.getTotalLength(); f.dataset.len = L; f.style.strokeDasharray = L; f.style.strokeDashoffset = L; });
+
+  // ---------- draw MCU pins ----------
+  const mcuPins = $("#mcuPins");
+  for (let i = 0; i < 8; i++) {
+    const o = 254 + i * 18;
+    mcuPins.append(
+      S("rect", { class: "pin", x: 410, y: o, width: 10, height: 6 }),
+      S("rect", { class: "pin", x: 580, y: o, width: 10, height: 6 }),
+      S("rect", { class: "pin", x: o + 166, y: 230, width: 6, height: 10 }),
+      S("rect", { class: "pin", x: o + 166, y: 400, width: 6, height: 10 })
+    );
+  }
+
+  // ---------- J1 pin header ----------
+  const j1Pins = $("#j1Pins");
+  for (let i = 0; i < 10; i++) {
+    const x = 538 + i * 16;
+    j1Pins.append(S("rect", { x: x - 5, y: 478, width: 10, height: 10, fill: "#c9a227", rx: 1 }), S("circle", { cx: x, cy: 505, r: 5, fill: "#c9a227" }));
+    j1Pins.append(S("text", { x: x, y: 526, "text-anchor": "middle", style: "fill:#9fc0b2;font:9px 'JetBrains Mono',ui-monospace,Consolas,monospace" }, "P" + i));
+  }
+
+  // ---------- draw project chips ----------
+  const partsG = $("#parts");
+  PARTS.forEach(p => {
+    const g = S("g", { class: "part", "data-id": p.id, tabindex: "0", role: "button", "aria-label": `${p.ref} ${p.name}, ${statusText(p.status).toLowerCase()}. Open datasheet` });
+    const n = 4, gap = p.h / (n + 1);
+    for (let i = 1; i <= n; i++) {
+      const py = p.y + gap * i - 3;
+      g.append(S("rect", { class: "pin", x: p.x - 8, y: py, width: 8, height: 6 }), S("rect", { class: "pin", x: p.x + p.w, y: py, width: 8, height: 6 }));
+    }
+    g.append(
+      S("rect", { class: "chip", x: p.x, y: p.y, width: p.w, height: p.h, rx: 6 }),
+      S("circle", { class: "notch", cx: p.x + 12, cy: p.y + 12, r: 3.5 }),
+      S("text", { class: "silk", x: p.x, y: p.y - 8 }, p.ref),
+      S("text", { class: "chip-title", x: p.x + 16, y: p.y + 44 }, p.title),
+      S("text", { class: "chip-sub", x: p.x + 16, y: p.y + 66 }, p.sub),
+      S("text", { class: "chip-status " + p.status, x: p.x + 16, y: p.y + p.h - 18 }, (p.status === "wip" ? "◐ " : "● ") + statusText(p.status)),
+      S("circle", { class: "led " + p.status, cx: p.x + p.w - 18, cy: p.y + 18, r: 6 })
+    );
+    partsG.append(g);
+  });
+
+  // ---------- OLED ----------
+  const ol = [0, 1, 2, 3].map(i => $("#ol" + i));
+  let oledTimer = null, cursorOn = true, oledMode = "off";
+  function oled(lines) { ol.forEach((t, i) => { t.textContent = lines[i] || ""; }); }
+  function oledHome() {
+    oledMode = "home";
+    clearInterval(oledTimer);
+    const draw = () => oled(["ANKIT KUMAR", "firmware | embedded", "EE @ NIT Agartala", "> probe a chip" + (cursorOn ? "_" : " ")]);
+    draw();
+    if (!reduce) oledTimer = setInterval(() => { cursorOn = !cursorOn; if (oledMode === "home") draw(); }, 520);
+  }
+  function oledPreview(id) {
+    if (!powered) return;
+    oledMode = "preview";
+    if (id === "about") return oled(["> U1 ABOUT ME", "  name: Ankit Kumar", "  B.Tech EE, NITA", "  [click] datasheet"]);
+    if (id === "skills") return oled(["> J1 SKILLS", "  10 pins mapped", "  C · ESP32 · I2C ..", "  [click] pinout"]);
+    if (id === "contact") return oled(["> J2 USB-C", "  link: CONTACT", "  open to internships", "  [click] connect"]);
+    const p = PARTS.find(x => x.id === id);
+    if (p) oled(["> " + p.ref + " " + p.title, "  " + statusText(p.status), "  " + p.sub, "  [click] datasheet"]);
+  }
+
+  // ---------- serial monitor ----------
+  const termOut = $("#termOut"), termIn = $("#termIn");
+  function print(text, cls) { termOut.appendChild(E("div", cls ? { class: cls } : {}, text)); termOut.scrollTop = termOut.scrollHeight; }
+
+  // ---------- power ----------
+  let powered = false, booting = false, bootTimers = [];
+  const powerBtn = $("#powerBtn"), sw1 = $("#sw1");
+  function later(fn, ms) { bootTimers.push(setTimeout(fn, reduce ? 0 : ms)); }
+
+  const BOOT = [
+    ["dim", "rst:0x1 (POWERON_RESET), boot:0x13 (SPI_FAST_FLASH_BOOT)"],
+    ["", "AK-32 bootloader · Ankit Kumar firmware portfolio v3.0"],
+    ["ok", "[ OK ] CPU clock ............ 240 MHz"],
+    ["ok", "[ OK ] GPIO ................. 5 buttons, RGB LED, relay"],
+    ["ok", "[ OK ] I2C0 scan ............ 0x3C SSD1306 OLED"],
+    ["ok", "[ OK ] ADC1 ................. 12-bit, calibrated"],
+    ["ok", "[ OK ] UART0 ................ 115200 baud"],
+    ["warn", "[WARN] CAN0 ................. driver in progress"],
+    ["warn", "[WARN] FreeRTOS ............. learning in progress"],
+    ["ok", "[ OK ] 7 projects mounted. Click a chip or type 'help'."]
+  ];
+
+  function powerOn() {
+    if (powered || booting) return;
+    booting = true;
+    pcb.classList.add("on");
+    sw1.setAttribute("aria-checked", "true");
+    powerBtn.setAttribute("aria-pressed", "true");
+    powerBtn.textContent = "⏻ Power off";
+    // traces fill in, power rail first
+    const order = fills.slice().sort((a, b) => (b.parentNode.classList.contains("pwr") ? 1 : 0) - (a.parentNode.classList.contains("pwr") ? 1 : 0));
+    order.forEach((f, i) => {
+      f.style.transition = reduce ? "none" : `stroke-dashoffset .55s ease ${i * 70}ms`;
+      f.style.strokeDashoffset = "0";
+    });
+    oledMode = "boot";
+    oled(["AK-32 BOOT v3.0", "", "", ""]);
+    later(() => oled(["AK-32 BOOT v3.0", "CLK 240MHz    OK", "", ""]), 250);
+    later(() => oled(["AK-32 BOOT v3.0", "CLK 240MHz    OK", "I2C 0x3C      OK", ""]), 500);
+    later(() => oled(["AK-32 BOOT v3.0", "CLK 240MHz    OK", "I2C 0x3C      OK", "UART 115200   OK"]), 750);
+    print("", "");
+    BOOT.forEach(([c, t], i) => later(() => print(t, c), 120 + i * 110));
+    later(() => { powered = true; booting = false; pcb.classList.add("ready"); oledHome(); }, 1300);
+  }
+  function powerOff() {
+    bootTimers.forEach(clearTimeout); bootTimers = [];
+    powered = false; booting = false;
+    pcb.classList.remove("on", "ready");
+    sw1.setAttribute("aria-checked", "false");
+    powerBtn.setAttribute("aria-pressed", "false");
+    powerBtn.textContent = "⏻ Power on";
+    fills.forEach(f => { f.style.transition = reduce ? "none" : "stroke-dashoffset .3s ease"; f.style.strokeDashoffset = f.dataset.len; });
+    clearInterval(oledTimer); oledMode = "off"; oled([]);
+    print("[ -- ] Power off.", "dim");
+  }
+  function togglePower() { (powered || booting) ? powerOff() : powerOn(); }
+  function reboot() { powerOff(); setTimeout(powerOn, reduce ? 0 : 450); }
+
+  powerBtn.addEventListener("click", togglePower);
+  sw1.addEventListener("click", togglePower);
+  sw1.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePower(); } });
+  const rst = $("#rst");
+  rst.addEventListener("click", reboot);
+  rst.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reboot(); } });
+
+  // ---------- hover / probe ----------
+  function highlight(id, on) {
+    $$(`.tr[data-to="${id}"]`).forEach(g => g.classList.toggle("active", on));
+    $$(`[data-id="${id}"]`).forEach(g => g.classList.toggle("hot", on));
+  }
+  pcb.addEventListener("mouseover", e => { const t = e.target.closest("[data-id]"); if (t) { highlight(t.dataset.id, true); oledPreview(t.dataset.id); } });
+  pcb.addEventListener("mouseout", e => { const t = e.target.closest("[data-id]"); if (t && !t.contains(e.relatedTarget)) { highlight(t.dataset.id, false); if (powered) oledHome(); } });
+  pcb.addEventListener("focusin", e => { const t = e.target.closest("[data-id]"); if (t) { highlight(t.dataset.id, true); oledPreview(t.dataset.id); } });
+  pcb.addEventListener("focusout", e => { const t = e.target.closest("[data-id]"); if (t) { highlight(t.dataset.id, false); if (powered) oledHome(); } });
+  function probe(id) {
+    if (!powered && !booting) { powerOn(); setTimeout(() => openSheet(id), reduce ? 0 : 900); }
+    else openSheet(id);
+  }
+  pcb.addEventListener("click", e => { const t = e.target.closest("[data-id]"); if (t) probe(t.dataset.id); });
+  pcb.addEventListener("keydown", e => {
+    const t = e.target.closest("[data-id]");
+    if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); probe(t.dataset.id); }
+  });
+
+  // ---------- datasheet drawer ----------
+  const sheet = $("#sheet"), scrim = $("#scrim"), body = $("#sheetBody");
+  let lastFocus = null, scopeRAF = null;
+  function h4(t) { return E("h4", {}, t); }
+  function linkBtn(text, href, primary) {
+    const a = E("a", { class: "btn" + (primary ? " power" : ""), href: href, target: "_blank", rel: "noopener" }, text);
+    return a;
+  }
+  function openSheet(id) {
+    lastFocus = document.activeElement;
+    body.innerHTML = "";
+    cancelAnimationFrame(scopeRAF);
+    const p = PARTS.find(x => x.id === id);
+    if (p) {
+      $("#sheetRef").textContent = "AK-32 · DATASHEET · " + p.ref;
+      body.append(E("h3", { id: "sheetTitle" }, p.name), E("span", { class: "badge " + p.status }, statusText(p.status)));
+      body.append(h4("Description"), E("p", {}, p.summary));
+      if (p.id === "osc") {
+        body.append(h4("Live capture (simulated)"));
+        const c = E("canvas", { class: "mini-scope", width: "460", height: "130", "aria-label": "Simulated scope trace" });
+        body.append(c); runMiniScope(c);
+      }
+      body.append(h4("Signal path"));
+      const fl = E("div", { class: "flowline" });
+      p.flow.forEach((n, i) => { fl.append(E("span", { class: "n" }, n)); if (i < p.flow.length - 1) fl.append(E("span", { class: "a", "aria-hidden": "true" }, "→")); });
+      body.append(fl);
+      body.append(h4("What I built"));
+      const ul = E("ul"); p.features.forEach(f => ul.append(E("li", {}, f))); body.append(ul);
+      body.append(h4("Result"), E("div", { class: "result" }, p.result));
+      body.append(h4("Pin assignment · stack"));
+      const pins = E("div", { class: "pins" });
+      p.stack.forEach((s, i) => { const sp = E("span"); sp.append(E("em", {}, "P" + i), document.createTextNode(s)); pins.append(sp); });
+      body.append(pins);
+      const act = E("div", { class: "sheet-actions" });
+      act.append(linkBtn("Code on GitHub", ME.github, true));
+      body.append(act);
+    } else if (id === "about") {
+      $("#sheetRef").textContent = "AK-32 · DATASHEET · U1 / MCU";
+      body.append(E("h3", { id: "sheetTitle" }, ME.name), E("span", { class: "badge done" }, "OPEN TO INTERNSHIPS"));
+      body.append(h4("Overview"), E("p", {}, "Electrical Engineering undergraduate at NIT Agartala. I write firmware, wire sensors, and measure what I build. I like projects where the theory, the circuit and the code all have to work together."));
+      body.append(h4("Education"));
+      const ed = E("ul"); ["B.Tech, Electrical Engineering · NIT Agartala · 2024–2028", "CGPA 8.1", "Coursework: Microprocessors, Analog & Digital Electronics, Power Electronics, Control Systems, Signals & Systems"].forEach(t => ed.append(E("li", {}, t))); body.append(ed);
+      body.append(h4("Currently working on"));
+      const now = E("ul"); ["STM32 bring-up and register-level drivers", "CAN bus communication", "FreeRTOS tasks, queues and mutexes", "A KiCad PCB for my ESP32 sensor node"].forEach(t => now.append(E("li", {}, t))); body.append(now);
+      body.append(h4("Spec"));
+      const sp = E("div", { class: "pins" }); [["CORE", "Firmware"], ["BUS", "UART · I2C · SPI"], ["SIM", "Simulink · Proteus"], ["HOST", "Python tools"]].forEach(([k, v]) => { const s = E("span"); s.append(E("em", {}, k), document.createTextNode(v)); sp.append(s); }); body.append(sp);
+      const act = E("div", { class: "sheet-actions" }); act.append(linkBtn("GitHub", ME.github, true)); if (ME.resume) act.append(linkBtn("Resume", ME.resume)); body.append(act);
+    } else if (id === "skills") {
+      $("#sheetRef").textContent = "AK-32 · DATASHEET · J1 PINOUT";
+      body.append(E("h3", { id: "sheetTitle" }, "Skills pinout"), E("p", {}, "Each pin is a skill. Bars show my own assessment from finished projects, not a certificate."));
+      body.append(h4("Pin map"));
+      SKILLS.forEach(s => {
+        const row = E("div", { class: "skill" });
+        const bar = E("div", { class: "bar", role: "img", "aria-label": s.name + ": " + s.level }); const i = E("i"); bar.append(i);
+        row.append(E("span", { class: "p" }, s.pin), E("span", {}, s.name), E("span", { class: "lv" }, s.level), bar);
+        body.append(row);
+        requestAnimationFrame(() => requestAnimationFrame(() => { i.style.width = s.v + "%"; }));
+      });
+    } else if (id === "contact") {
+      $("#sheetRef").textContent = "AK-32 · DATASHEET · J2 USB-C";
+      body.append(E("h3", { id: "sheetTitle" }, "Connect"), E("p", {}, "Open to firmware and embedded internships, and to teams building hardware projects."));
+      body.append(h4("Endpoints"));
+      [["GitHub", ME.githubShort, ME.github], ["Email", ME.email, ME.email && "mailto:" + ME.email], ["LinkedIn", "LinkedIn profile", ME.linkedin], ["Resume", "Resume (PDF)", ME.resume]].filter(r => r[2]).forEach(([k, v, href]) => {
+        const r = E("div", { class: "contact-row" }); const a = E("a", { href: href, target: "_blank", rel: "noopener" }, v);
+        r.append(E("span", {}, k.toUpperCase()), a); body.append(r);
+      });
+      const act = E("div", { class: "sheet-actions" });
+      const cp = E("button", { class: "btn power", type: "button" }, "Copy email"); cp.addEventListener("click", copyEmail);
+      if (ME.email) act.append(cp); else act.append(linkBtn("Open GitHub profile", ME.github, true));
+      body.append(act);
+    } else return;
+    sheet.classList.add("open"); scrim.classList.add("open");
+    sheet.setAttribute("aria-hidden", "false");
+    $("#sheetClose").focus();
+  }
+  function closeSheet() {
+    if (!sheet.classList.contains("open")) return;
+    sheet.classList.remove("open"); scrim.classList.remove("open");
+    sheet.setAttribute("aria-hidden", "true");
+    cancelAnimationFrame(scopeRAF);
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  $("#sheetClose").addEventListener("click", closeSheet);
+  scrim.addEventListener("click", closeSheet);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+
+  function runMiniScope(c) {
+    const ctx = c.getContext("2d"); let t = 0;
+    (function frame() {
+      const w = c.width, h = c.height;
+      ctx.fillStyle = "#01070a"; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "#0f2a24"; ctx.lineWidth = 1;
+      for (let x = 0; x <= w; x += 46) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+      for (let y = 0; y <= h; y += 26) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+      ctx.strokeStyle = "#3fe0c5"; ctx.lineWidth = 2; ctx.beginPath();
+      for (let x = 0; x <= w; x++) {
+        const p = (x / w) * 6 * Math.PI + t;
+        const y = h / 2 + Math.sin(p) * 38 + Math.sin(3 * p) * 6;
+        x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      ctx.fillStyle = "#7fb3a3"; ctx.font = "11px Consolas, monospace"; ctx.fillText("CH1  1V/div  10ms/div", 8, 14);
+      t += 0.05;
+      if (!reduce) scopeRAF = requestAnimationFrame(frame);
+    })();
+  }
+
+  // ---------- BOM ----------
+  const bomBody = $("#bomBody");
+  const BOM = [{ ref: "U1", name: "About me (OLED + MCU)", stack: "EE @ NIT Agartala · 2024–2028", status: "done", id: "about" }]
+    .concat(PARTS.map(p => ({ ref: p.ref, name: p.name, stack: p.stack.join(", "), status: p.status, id: p.id })))
+    .concat([{ ref: "J1", name: "Skills pinout", stack: "10 skills with levels", status: "done", id: "skills" },
+             { ref: "J2", name: "Contact (USB-C)", stack: "How to reach me", status: "done", id: "contact" }]);
+  BOM.forEach(r => {
+    const tr = E("tr");
+    const b = E("button", { class: "link-btn", type: "button" }, "Datasheet →");
+    b.addEventListener("click", () => openSheet(r.id));
+    const st = E("td"); st.append(E("span", { class: "st " + r.status }, statusText(r.status)));
+    const last = E("td"); last.append(b);
+    tr.append(E("td", { class: "ref" }, r.ref), E("td", {}, r.name), E("td", {}, r.stack), st, last);
+    bomBody.append(tr);
+  });
+
+  // ---------- copy email ----------
+  const toast = $("#toast");
+  function showToast(m) { toast.textContent = m; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 1800); }
+  async function copyEmail() {
+    try { await navigator.clipboard.writeText(ME.email); showToast("Email copied"); }
+    catch (e) { showToast(ME.email); }
+  }
+
+  // ---------- serial commands ----------
+  const history = []; let hIdx = 0;
+  const pad = (s, n) => (s + " ".repeat(n)).slice(0, n);
+  const COMMANDS = {
+    help: () => [
+      ["", "Commands:"],
+      ["", "  whoami          about Ankit"],
+      ["", "  ls              list every chip on the board"],
+      ["", "  probe <ref>     open a datasheet, e.g. probe U2"],
+      ["", "  skills          J1 pinout"],
+      ["", "  i2cscan         scan the I2C bus (simulated)"],
+      ["", "  status          what I'm working on"],
+      ["", "  contact         how to reach me"],
+      ["", "  poweron | poweroff | reboot"],
+      ["", "  clear"]
+    ],
+    whoami: () => [["ok", ME.name], ["", "Electrical Engineering · NIT Agartala · 2024–2028"], ["", "Firmware, embedded systems, hardware–software integration."]],
+    ls: () => [["dim", "REF  STATUS        PART"]]
+      .concat([["ok", "U1   COMPLETED     About me"]])
+      .concat(PARTS.map(p => [p.status === "wip" ? "warn" : "ok", pad(p.ref, 5) + pad(statusText(p.status), 14) + p.name]))
+      .concat([["ok", "J1   COMPLETED     Skills pinout"], ["ok", "J2   COMPLETED     Contact"], ["dim", "Tip: probe <ref>"]]),
+    skills: () => SKILLS.map(s => ["", pad(s.pin, 4) + pad(s.name, 26) + s.level]),
+    i2cscan: () => [["dim", "I2C0 scan (SDA=GPIO21, SCL=GPIO22) · simulated"], ["ok", "  0x3C  SSD1306 OLED     ACK"], ["warn", "  0x68  MPU6050 IMU      intermittent (debugging · U7 Air Mouse)"], ["", "2 devices found."]],
+    status: () => [["", "Now:  STM32 bring-up · CAN bus · FreeRTOS"], ["", "Next: KiCad PCB for the ESP32 node · CAN battery monitor"], ["ok", "Open to: firmware internships and hardware project teams"]],
+    contact: () => [["", "github    " + ME.githubShort], ME.email && ["", "email     " + ME.email], ME.linkedin && ["", "linkedin  " + ME.linkedin]].filter(Boolean),
+    poweron: () => { powerOn(); return []; },
+    poweroff: () => { powerOff(); return []; },
+    reboot: () => { reboot(); return [["dim", "Rebooting ..."]]; },
+    clear: () => { termOut.innerHTML = ""; return []; }
+  };
+  function run(raw) {
+    const line = raw.trim(); if (!line) return;
+    print("visitor@ak-32:~$ " + line, "cmd");
+    history.push(line); hIdx = history.length;
+    const [cmd, ...args] = line.split(/\s+/); const c = cmd.toLowerCase();
+    if (c === "sudo" && args.join(" ").toLowerCase() === "hire-me") {
+      print("[sudo] password for visitor: ********", "dim");
+      setTimeout(() => {
+        if (ME.email) { print("Access granted. Email copied to clipboard. Let's build something.", "ok"); copyEmail(); }
+        else print("Access granted. Find me at " + ME.githubShort + ". Let's build something.", "ok");
+      }, 650);
+      return;
+    }
+    if (c === "probe" || c === "open") {
+      const q = (args[0] || "").toLowerCase();
+      const hit = BOM.find(r => r.ref.toLowerCase() === q || r.id === q);
+      if (hit) { print("Probing " + hit.ref + " · " + hit.name + " ...", "ok"); probe(hit.id); }
+      else print("probe: no part '" + (args[0] || "") + "'. Type 'ls'.", "err");
+      return;
+    }
+    const fn = COMMANDS[c];
+    if (!fn) { print("command not found: " + cmd + " · type 'help'", "err"); return; }
+    fn().forEach(([cls, t]) => print(t, cls));
+  }
+  print("Connected to COM3 at 115200 baud. Board is unpowered.", "dim");
+  print("Type 'poweron' or flip SW1 on the board.", "warn");
+  $("#termForm").addEventListener("submit", e => { e.preventDefault(); run(termIn.value); termIn.value = ""; });
+  termIn.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp" && history.length) { hIdx = Math.max(0, hIdx - 1); termIn.value = history[hIdx]; e.preventDefault(); }
+    if (e.key === "ArrowDown" && history.length) { hIdx = Math.min(history.length, hIdx + 1); termIn.value = history[hIdx] || ""; e.preventDefault(); }
+  });
+  $$(".chips button").forEach(b => b.addEventListener("click", () => run(b.dataset.cmd)));
+
+  // ---------- auto power-on if the visitor waits ----------
+  if (reduce) powerOn();
+  else setTimeout(() => { if (!powered && !booting) powerOn(); }, 6000);
+})();
+</script>
+
+</body>
+</html>
